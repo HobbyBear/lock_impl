@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"lock_impl"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -18,9 +17,9 @@ func NewMCSLock() *MCSLock {
 	return &MCSLock{tail: n}
 }
 
-func (c *MCSLock) Lock(myNode *lock_impl.QNode) {
+func (c *MCSLock) Lock(myNode *QNode) {
 	myNode.Locked = true
-	preNode := (*lock_impl.QNode)(atomic.SwapPointer(&c.tail, unsafe.Pointer(myNode)))
+	preNode := (*QNode)(atomic.SwapPointer(&c.tail, unsafe.Pointer(myNode)))
 	if preNode != nil {
 		myNode.Locked = true
 		preNode.Next = myNode
@@ -31,7 +30,12 @@ func (c *MCSLock) Lock(myNode *lock_impl.QNode) {
 
 }
 
-func (c *MCSLock) UnLock(myNode *lock_impl.QNode) {
+type QNode struct {
+	Locked bool
+	Next   *QNode
+}
+
+func (c *MCSLock) UnLock(myNode *QNode) {
 	myNode.Locked = false
 	if myNode.Next == nil {
 		if atomic.CompareAndSwapPointer(&c.tail, unsafe.Pointer(myNode), nil) {
@@ -61,7 +65,7 @@ var (
 )
 
 func increment(i int, m *MCSLock, wg *sync.WaitGroup) {
-	myNode := new(lock_impl.QNode)
+	myNode := new(QNode)
 
 	for {
 		m.Lock(myNode)
