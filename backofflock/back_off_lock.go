@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -57,4 +59,30 @@ func (b *backOff) backoff() {
 
 func main() {
 
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go increment(i, m, &wg)
+	}
+	wg.Wait()
+
+}
+
+var (
+	x int
+	m = NewBackOffLock()
+)
+
+func increment(i int, m *BackOffLock, wg *sync.WaitGroup) {
+	for {
+		m.Lock()
+		if x >= 200 {
+			m.UnLock()
+			wg.Done()
+			return
+		}
+		fmt.Println(x)
+		x++
+		m.UnLock()
+	}
 }
