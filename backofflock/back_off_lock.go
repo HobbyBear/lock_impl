@@ -1,4 +1,4 @@
-package lock_impl
+package main
 
 import (
 	"math"
@@ -53,4 +53,8 @@ func (b *backOff) backoff() {
 	delay := rand.Intn(b.limit)
 	b.limit = int(math.Min(float64(b.MaxDelay), float64(2*b.limit)))
 	time.Sleep(time.Duration(delay) * time.Second)
+}
+
+func main() {
+
 }
