@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"lock_impl"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -12,8 +12,12 @@ type CLKLock struct {
 	tail unsafe.Pointer
 }
 
+type QNode struct {
+	Locked bool
+}
+
 func NewCLKLock() *CLKLock {
-	node := unsafe.Pointer(new(lock_impl.QNode))
+	node := unsafe.Pointer(new(QNode))
 	return &CLKLock{
 		tail: node,
 	}
@@ -25,16 +29,17 @@ type container struct {
 }
 
 func (c *CLKLock) Lock(contain *container) {
-	(*lock_impl.QNode)(contain.MyNode).Locked = true
+	(*QNode)(contain.MyNode).Locked = true
 	contain.PreNode = atomic.SwapPointer(&c.tail, contain.MyNode)
-	fmt.Println("tail", *(*lock_impl.QNode)(c.tail))
-	for (*lock_impl.QNode)(contain.PreNode).Locked {
+	//fmt.Println("tail", *(*QNode)(c.tail))
+	for (*QNode)(contain.PreNode).Locked {
+		runtime.Gosched()
 	}
 }
 
 func (c *CLKLock) UnLock(contain *container) {
-	(*lock_impl.QNode)(contain.MyNode).Locked = false
-	fmt.Println("结束", "tail", *(*lock_impl.QNode)(c.tail))
+	(*QNode)(contain.MyNode).Locked = false
+	//fmt.Println("结束", "tail", *(*QNode)(c.tail))
 	contain.MyNode = contain.PreNode
 }
 
@@ -56,7 +61,7 @@ var (
 
 func increment(i int, m *CLKLock, wg *sync.WaitGroup) {
 	contain := &container{
-		MyNode:  unsafe.Pointer(new(lock_impl.QNode)),
+		MyNode:  unsafe.Pointer(new(QNode)),
 		PreNode: unsafe.Pointer(nil),
 	}
 	for {
